@@ -225,6 +225,10 @@ class SearchViewModel(
         searchJob?.cancel()
         searchJob = screenModelScope.launch {
             mutableState.value = LoadState.Loading
+            // The results stop waiting for the authors request, so the Authors
+            // tab would otherwise keep the previous query's names — live and
+            // tappable — for the seconds it runs. Empty is honest; stale is not.
+            authorNames = emptyList()
             loadSearchResults()
             if (reloadAuthor && selectedAuthor != null) {
                 loadAuthorSeriesPage(1)
@@ -241,12 +245,20 @@ class SearchViewModel(
      */
     private suspend fun loadSearchResults() = coroutineScope {
         currentTab = userSelectedTab
+        // The authors request is the slow one — one unpaged call per counted
+        // role, measured at up to six seconds each on a busy server — and it
+        // still runs alongside the other two. What changed is that the results
+        // stop waiting for it: marking them current only after all three had
+        // answered left the correct series and books dimmed and untappable for
+        // as long as the authors took, which on the tablet was fifteen seconds
+        // of a list that was already right.
+        val authors = async { loadAuthorNames() }
         listOf(
             async { loadSeriesPage(1) },
             async { loadBooksPage(1) },
-            async { loadAuthorNames() },
         ).awaitAll()
         resultsQuery = query.trim()
+        authors.await()
         if (seriesResults.isEmpty() && bookResults.isNotEmpty() && currentTab == SearchResultsTab.SERIES) {
             currentTab = SearchResultsTab.BOOKS
         } else if (bookResults.isEmpty() && seriesResults.isNotEmpty() && currentTab == SearchResultsTab.BOOKS) {
