@@ -939,6 +939,16 @@ FRENCH: dict[str, str] = {
     "Bibliothèques dans « Toutes »": "Bibliothèques dans « Toutes »",
     "Fermer": "Fermer",
     "Bibliothèques incluses dans « Toutes »": "Bibliothèques incluses dans « Toutes »",
+
+    # --- reader: page translation panel ------------------------------------
+    "Translate from": "Traduire depuis",
+    "Better translation": "Meilleure traduction",
+    "Download model": "Télécharger le modèle",
+    "Remove model": "Supprimer le modèle",
+    "Glossary for this series": "Glossaire de cette série",
+    "Add term": "Ajouter un terme",
+    "Term": "Terme",
+    "Translation": "Traduction",
 }
 
 # The literals that were written in French in the first place still need an
