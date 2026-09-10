@@ -51,15 +51,62 @@ fun isSimilarityMarkerTag(tag: String): Boolean = tag.lowercase().let {
  * objects for a few thousand series — summaries included, twice over — is what
  * would turn an index build into a memory spike on a tablet.
  */
+/**
+ * The genre a series is filed under on disk, or null when the path does not
+ * say.
+ *
+ * Measured on the real library on 2026-09-10: a third of the series carry no
+ * genre, no tag, no publisher and no author, which makes them invisible to the
+ * scorer for good — nothing can be similar to nothing. But every one of them
+ * has a path, and the path is a taxonomy the user maintained by hand:
+ * `Mangas/Action/Fire Punch (INT)`, `Comics/Super-Héros/…`. Over 725 sampled
+ * paths, `Mangas` used ten distinct second-level names for 584 series and
+ * `Comics` four for 43 — a genre. `Divers` used 28 for 35 — a title.
+ *
+ * The rule separating those two without any global view: a series folder sits
+ * at `<root>/<genre>/<series>`, so a genre exists only when there is a segment
+ * BETWEEN the library root and the series folder. `Divers/<series>` has none
+ * and yields null, which is the correct answer.
+ */
+internal fun seriesFolderGenre(url: String): String? {
+    val segments = url.split('/', '\\').filter { it.isNotBlank() }
+    // <root>/<genre>/<series> is the shortest shape that names a genre.
+    if (segments.size < 3) return null
+    val candidate = segments[segments.size - 2].trim().lowercase()
+    if (candidate.isEmpty()) return null
+    // Some shelves sort by language instead: `Mangas/JP/…`, `Comics/1 EN/…`.
+    // Grouping every English series as similar to every other would be a
+    // strong term with no meaning, so those are dropped. Franchise folders
+    // (`DC Essentiels`, `Fairy Tail (univers)`) are deliberately KEPT — two
+    // series filed under the same franchise really are related, and that is
+    // exactly the kind of link the sparse metadata never provides.
+    if (candidate.first().isDigit()) return null
+    if (candidate in LANGUAGE_FOLDERS) return null
+    return candidate
+}
+
+private val LANGUAGE_FOLDERS = setOf(
+    "en", "fr", "jp", "ja", "us", "uk", "vo", "vf", "vostfr", "eng", "fra", "multi", "raw",
+)
+
 fun KomgaSeries.toSimilarityTerms(): SeriesTerms {
     val seriesTags = metadata.tags.map { it.trim() }
         .filter { it.isNotEmpty() && !isSimilarityMarkerTag(it) }
 
     // `kora:genre:*` is the curated taxonomy and scores highest; everything else
     // is a plain tag. Splitting here keeps the weighting honest.
-    val genres = seriesTags.filter { it.startsWith(GENRE_PREFIX) }
+    val taggedGenres = seriesTags.filter { it.startsWith(GENRE_PREFIX) }
         .map { it.removePrefix(GENRE_PREFIX).lowercase() }
         .toSet()
+
+    // The folder genre fills in ONLY where the curated taxonomy says nothing.
+    // Deliberately not merged in everywhere: a series that already has genres
+    // keeps exactly the vector it had, so this cannot move any existing
+    // "Similar" result. It buys reach among the series that had none, which is
+    // the whole point, at zero risk to the ones that already worked.
+    val genres = taggedGenres.ifEmpty {
+        setOfNotNull(seriesFolderGenre(url))
+    }
     val tags = seriesTags.filterNot { it.startsWith(GENRE_PREFIX) }
         .map { it.lowercase() }
         .toSet()

@@ -1547,7 +1547,7 @@ private fun OcrModeSettings(
         // reading Latin on a Japanese page finds nothing and looks like a
         // broken translation rather than a mismatched setting.
         Column {
-            Text("Translate from")
+            Text(LocalStrings.current.ui.translateFrom)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 listOf(
                     snd.komelia.settings.model.TranslationLanguage.ENGLISH,
@@ -1605,7 +1605,7 @@ private fun TranslationModelSettings(
     if (state == null) return
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Better translation")
+        Text(LocalStrings.current.ui.betterTranslation)
         when (state) {
             is snd.komelia.ui.reader.image.TranslationModelState.Missing -> {
                 Text(
@@ -1614,7 +1614,7 @@ private fun TranslationModelSettings(
                     style = MaterialTheme.typography.labelMedium,
                 )
                 TextButton(onClick = { commonReaderState.downloadTranslationModel() }) {
-                    Text("Download model")
+                    Text(LocalStrings.current.ui.downloadModel2)
                 }
             }
 
@@ -1632,7 +1632,7 @@ private fun TranslationModelSettings(
                     style = MaterialTheme.typography.labelMedium,
                 )
                 TextButton(onClick = { commonReaderState.deleteTranslationModel() }) {
-                    Text("Remove model")
+                    Text(LocalStrings.current.ui.removeModel)
                 }
             }
         }
@@ -1659,7 +1659,7 @@ private fun SeriesGlossarySettings(
     var target by remember { mutableStateOf("") }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Glossary for this series")
+        Text(LocalStrings.current.ui.glossaryForThisSeries)
         Text(
             "A term the translator keeps getting wrong. Leave the translation " +
                     "empty to keep the word as it is, which is what a name needs.",
@@ -1673,14 +1673,14 @@ private fun SeriesGlossarySettings(
             OutlinedTextField(
                 value = source,
                 onValueChange = { source = it },
-                label = { Text("Term") },
+                label = { Text(LocalStrings.current.ui.term) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
             )
             OutlinedTextField(
                 value = target,
                 onValueChange = { target = it },
-                label = { Text("Translation") },
+                label = { Text(LocalStrings.current.ui.translation) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
             )
@@ -1692,7 +1692,7 @@ private fun SeriesGlossarySettings(
                 source = ""
                 target = ""
             },
-        ) { Text("Add term") }
+        ) { Text(LocalStrings.current.ui.addTerm) }
 
         terms.forEach { term ->
             Row(

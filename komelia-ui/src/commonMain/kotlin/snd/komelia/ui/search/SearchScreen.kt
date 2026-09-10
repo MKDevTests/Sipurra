@@ -118,6 +118,7 @@ class SearchScreen(
                                             authorBookCurrentPage = vm.authorBookCurrentPage,
                                             authorBookTotalPages = vm.authorBookTotalPages,
                                             onAuthorBookPageChange = vm::onAuthorBookPageChange,
+                                            stale = vm.resultsAreStale,
                                         )
 
                                         else -> LoadingMaxSizeIndicator()
@@ -178,6 +179,7 @@ class SearchScreen(
                             authorBookCurrentPage = vm.authorBookCurrentPage,
                             authorBookTotalPages = vm.authorBookTotalPages,
                             onAuthorBookPageChange = vm::onAuthorBookPageChange,
+                            stale = vm.resultsAreStale,
                         )
 
                         else -> LoadingMaxSizeIndicator()
@@ -226,6 +228,7 @@ class SearchScreen(
                                 authorBookCurrentPage = vm.authorBookCurrentPage,
                                 authorBookTotalPages = vm.authorBookTotalPages,
                                 onAuthorBookPageChange = vm::onAuthorBookPageChange,
+                                stale = vm.resultsAreStale,
                             )
                         }
 

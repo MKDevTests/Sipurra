@@ -29,6 +29,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import snd.komelia.komga.api.model.KomeliaBook
 import snd.komelia.ui.LocalTheme
@@ -73,6 +76,14 @@ fun SearchContent(
     authorBookCurrentPage: Int,
     authorBookTotalPages: Int,
     onAuthorBookPageChange: (Int) -> Unit,
+
+    /**
+     * The results shown answer a query the user has already moved on from.
+     * They stay on screen — see [SearchViewModel.resultsAreStale] — but are
+     * dimmed and stop accepting input, so a row belonging to the previous
+     * search cannot be opened while the new one is still in flight.
+     */
+    stale: Boolean = false,
 ) {
     if (query.isNotBlank() &&
         bookResults.isEmpty() &&
@@ -85,6 +96,7 @@ fun SearchContent(
     }
 
     Box(
+        modifier = if (stale) Modifier.alpha(.38f) else Modifier,
         contentAlignment = Alignment.TopCenter
     ) {
         val widthModifier = when (LocalWindowWidth.current) {
@@ -216,6 +228,25 @@ fun SearchContent(
         }
 
         VerticalScrollbar(scrollState, Modifier.align(Alignment.TopEnd))
+
+        // Swallow every pointer event, on the Initial pass so nothing
+        // underneath sees it first. Dimming alone would still leave the rows
+        // tappable, which is the actual defect: the dimming is only there to
+        // say why they stopped responding.
+        if (stale) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent(PointerEventPass.Initial)
+                                    .changes.forEach { it.consume() }
+                            }
+                        }
+                    }
+            )
+        }
     }
 }
 

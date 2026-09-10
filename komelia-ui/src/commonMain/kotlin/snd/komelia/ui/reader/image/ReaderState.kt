@@ -973,12 +973,23 @@ class ReaderState(
     /**
      * Keeps [nightModeActive] true for exactly the scheduled range.
      *
-     * It sleeps until the next switch-over rather than polling: a range that
-     * runs 22:00 to 07:00 changes state twice a day, and a once-a-minute
-     * comparison would be 1440 wake-ups to catch those two. The sleep is
-     * capped at an hour so that changing the system clock or the time zone
-     * mid-book resynchronises on its own instead of firing at the wrong
-     * moment on a stale eight-hour timer.
+     * It recomputes from the wall clock and sleeps at most a minute.
+     *
+     * The sleep used to be capped at an hour, on the reasoning that a range
+     * running 22:00 to 07:00 changes state twice a day and once-a-minute
+     * polling would be 1440 wake-ups to catch two. That reasoning ignored
+     * Doze: `delay` does not advance while the device is asleep, so a timer
+     * set before the tablet dozed fires late by however long it slept.
+     * Measured by Mathieu on 2026-09-10 — the tint came on three hours after
+     * 22:00 and went off hours late, which is exactly the time the tablet
+     * spent asleep.
+     *
+     * A minute bounds that error at a minute, whatever Doze does. The cost is
+     * one clock read and two integer comparisons per minute, and only while a
+     * book is open — this watcher lives on the reader screen's scope, not the
+     * application's, so it stops when the reader closes and re-emits the
+     * correct value the moment one opens. `distinctUntilChanged` below means
+     * the extra wake-ups produce no recomposition unless the state changed.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun watchNightModeSchedule() {
@@ -991,9 +1002,13 @@ class ReaderState(
                     emit(settings.isActiveAt(minuteOfDay))
                     val untilTransition = settings.minutesUntilNextTransition(minuteOfDay)
                     if (untilTransition == null) break
-                    val sleepMinutes = minOf(untilTransition, 60)
-                    // +1s so we land past the boundary minute, not on it.
-                    delay(sleepMinutes * 60_000L + 1_000L)
+                    // At most a minute: see the Doze note above.
+                    if (untilTransition <= 1) {
+                        // +1s so we land past the boundary minute, not on it.
+                        delay(untilTransition * 60_000L + 1_000L)
+                    } else {
+                        delay(60_000L)
+                    }
                 }
             }
         }

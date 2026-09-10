@@ -166,6 +166,24 @@ class SearchViewModel(
     val hasAnyResults: Boolean
         get() = seriesResults.isNotEmpty() || bookResults.isNotEmpty() || authorNames.isNotEmpty()
 
+    /** The query that produced the results currently held above. */
+    var resultsQuery by mutableStateOf<String?>(null)
+        private set
+
+    /**
+     * True while what is on screen answers a query the user has already moved
+     * on from. Keeping the old results visible is deliberate — blanking them on
+     * every keystroke is what made searching feel slow — but they must not stay
+     * *actionable*: between typing a new query and its answer arriving there is
+     * a window, half a second of debounce plus the round trip, in which tapping
+     * a row opens a result of the previous search.
+     *
+     * Paging and tab switches reload without touching [resultsQuery], so they
+     * are not stale and stay live.
+     */
+    val resultsAreStale: Boolean
+        get() = hasAnyResults && resultsQuery != query.trim()
+
     suspend fun initialize(initialQuery: String?) {
         // Preserve the in-memory results (and the current tab) when the user
         // returns to the search tab after opening a result. The tab opens with
@@ -207,6 +225,10 @@ class SearchViewModel(
         searchJob?.cancel()
         searchJob = screenModelScope.launch {
             mutableState.value = LoadState.Loading
+            // The results stop waiting for the authors request, so the Authors
+            // tab would otherwise keep the previous query's names — live and
+            // tappable — for the seconds it runs. Empty is honest; stale is not.
+            authorNames = emptyList()
             loadSearchResults()
             if (reloadAuthor && selectedAuthor != null) {
                 loadAuthorSeriesPage(1)
@@ -223,11 +245,20 @@ class SearchViewModel(
      */
     private suspend fun loadSearchResults() = coroutineScope {
         currentTab = userSelectedTab
+        // The authors request is the slow one — one unpaged call per counted
+        // role, measured at up to six seconds each on a busy server — and it
+        // still runs alongside the other two. What changed is that the results
+        // stop waiting for it: marking them current only after all three had
+        // answered left the correct series and books dimmed and untappable for
+        // as long as the authors took, which on the tablet was fifteen seconds
+        // of a list that was already right.
+        val authors = async { loadAuthorNames() }
         listOf(
             async { loadSeriesPage(1) },
             async { loadBooksPage(1) },
-            async { loadAuthorNames() },
         ).awaitAll()
+        resultsQuery = query.trim()
+        authors.await()
         if (seriesResults.isEmpty() && bookResults.isNotEmpty() && currentTab == SearchResultsTab.SERIES) {
             currentTab = SearchResultsTab.BOOKS
         } else if (bookResults.isEmpty() && seriesResults.isNotEmpty() && currentTab == SearchResultsTab.BOOKS) {
